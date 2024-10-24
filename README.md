@@ -4,7 +4,7 @@
 <details>
   <summary>Code</summary>
   
-  Code from [Main.java](src/main/java/com/eltex/Main.java)
+  Code from [Main.kt](src/main/kotlin/Main.kt)
   
   ![image](https://github.com/user-attachments/assets/ab8ea890-8efb-485c-825b-967e0117a4b2)
 
