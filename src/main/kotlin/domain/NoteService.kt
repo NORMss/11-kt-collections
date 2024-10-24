@@ -1,6 +1,8 @@
 package ru.normno.domain
 
+import arrow.core.Either
 import ru.normno.domain.model.Note
+import ru.normno.util.NoteError
 
 interface NoteService {
     /**
@@ -9,7 +11,7 @@ interface NoteService {
      * При обновлении updatedAt должно заполняться текущим временем
      * @throws IllegalArgumentException
      */
-    fun save(note: Note): Note
+    fun save(note: Note): Either<NoteError, Note>
 
     /**
      * Возвращает копию внутреннего списка

@@ -1,7 +1,11 @@
 package ru.normno.data
 
+import arrow.core.Either
+import arrow.core.left
+import arrow.core.right
 import ru.normno.domain.NoteService
 import ru.normno.domain.model.Note
+import ru.normno.util.NoteError
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicLong
 
@@ -9,8 +13,8 @@ class NoteServiceImpl : NoteService {
     private val notes = mutableListOf<Note>()
     private val idGenerator = AtomicLong(1)
 
-    override fun save(note: Note): Note {
-        if (note.id == 0L) {
+    override fun save(note: Note): Either<NoteError, Note> {
+        return if (note.id == 0L) {
             note.run {
                 copy(
                     id = idGenerator.getAndIncrement(),
@@ -19,12 +23,12 @@ class NoteServiceImpl : NoteService {
                 )
             }.let {
                 notes.add(it)
-                return it
+                it.right()
             }
         } else {
             notes.indexOfFirst { it.id == note.id }.let { index ->
                 if (index == -1) {
-                    throw IllegalArgumentException("Invalid id: ${note.id}")
+                    return NoteError.InvalidId(note.id).left()
                 }
                 notes[index].run {
                     copy(
@@ -33,7 +37,7 @@ class NoteServiceImpl : NoteService {
                     )
                 }.let {
                     notes.add(it)
-                    return it
+                    it.right()
                 }
             }
         }
@@ -50,7 +54,7 @@ class NoteServiceImpl : NoteService {
     override fun getBefore(count: Int, id: Long): List<Note> {
         notes.indexOfFirst { it.id == id }.let { startIndex ->
             if (startIndex == -1) {
-                throw IllegalArgumentException("Invalid id: $id")
+                return emptyList()
             }
             return notes.subList(0, startIndex).takeLast(count)
         }
@@ -59,7 +63,7 @@ class NoteServiceImpl : NoteService {
     override fun getAfter(count: Int, id: Long): List<Note> {
         notes.indexOfFirst { it.id == id }.let { startIndex ->
             if (startIndex == -1) {
-                throw IllegalArgumentException("Invalid id: $id")
+                return emptyList()
             }
             return notes.subList(startIndex + 1, notes.size).take(count)
         }

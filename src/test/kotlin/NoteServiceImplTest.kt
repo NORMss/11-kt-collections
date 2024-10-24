@@ -1,9 +1,10 @@
+import arrow.core.Either
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import ru.normno.data.NoteServiceImpl
 import ru.normno.domain.NoteService
 import ru.normno.domain.model.Note
+import ru.normno.util.NoteError
 import java.lang.Thread.sleep
 import java.time.Instant
 import kotlin.test.assertEquals
@@ -23,8 +24,10 @@ class NoteServiceImplTest {
     fun `save should create a new note when id is 0`() {
         val note = Note(id = 0, text = "Test note", createdAt = Instant.now(), updatedAt = Instant.now())
 
-        val savedNote = noteService.save(note)
+        val result = noteService.save(note)
+        assertTrue(result is Either.Right)
 
+        val savedNote = result.value
         assertNotNull(savedNote.id)
         assertEquals("Test note", savedNote.text)
         assertTrue(savedNote.createdAt.isBefore(Instant.now()))
@@ -34,25 +37,28 @@ class NoteServiceImplTest {
     @Test
     fun `save should update an existing note when valid id is provided`() {
         val note = Note(id = 0, text = "Old text")
-        val savedNote = noteService.save(note)
+        val savedNote = (noteService.save(note) as Either.Right).value
+
+        sleep(1L)
 
         val updatedNote = savedNote.copy(text = "Updated text")
-        sleep(1L)
         val result = noteService.save(updatedNote)
 
-        assertEquals(savedNote.id, result.id)
-        assertEquals("Updated text", result.text)
-        assertTrue(result.updatedAt.isAfter(savedNote.updatedAt))
+        assertTrue(result is Either.Right)
+        val updatedResult = result.value
+
+        assertEquals(savedNote.id, updatedResult.id)
+        assertEquals("Updated text", updatedResult.text)
+        assertTrue(updatedResult.updatedAt.isAfter(savedNote.updatedAt))
     }
 
     @Test
-    fun `save should throw IllegalArgumentException for invalid id`() {
-        val invalidNote =
-            Note(id = 999, text = "Non-existent note", createdAt = Instant.now(), updatedAt = Instant.now())
+    fun `save should return Left with NoteError for invalid id`() {
+        val invalidNote = Note(id = 999, text = "Non-existent note", createdAt = Instant.now(), updatedAt = Instant.now())
 
-        assertThrows<IllegalArgumentException> {
-            noteService.save(invalidNote)
-        }
+        val result = noteService.save(invalidNote)
+        assertTrue(result is Either.Left)
+        assertTrue(result.value is NoteError.InvalidId)
     }
 
     @Test
@@ -85,15 +91,11 @@ class NoteServiceImplTest {
 
     @Test
     fun `getBefore should return notes older than given id`() {
-        val note1 =
-            noteService.save(Note(id = 0, text = "Note 1", createdAt = Instant.now(), updatedAt = Instant.now()))
-        val note2 =
-            noteService.save(Note(id = 0, text = "Note 2", createdAt = Instant.now(), updatedAt = Instant.now()))
-        val note3 =
-            noteService.save(Note(id = 0, text = "Note 3", createdAt = Instant.now(), updatedAt = Instant.now()))
+        val note1 = (noteService.save(Note(id = 0, text = "Note 1")) as Either.Right).value
+        val note2 = (noteService.save(Note(id = 0, text = "Note 2")) as Either.Right).value
+        val note3 = (noteService.save(Note(id = 0, text = "Note 3")) as Either.Right).value
 
         val result = noteService.getBefore(2, note3.id)
-
         assertEquals(2, result.size)
         assertEquals(note1.text, result[0].text)
         assertEquals(note2.text, result[1].text)
@@ -101,31 +103,25 @@ class NoteServiceImplTest {
 
     @Test
     fun `getAfter should return notes newer than given id`() {
-        val note1 =
-            noteService.save(Note(id = 0, text = "Note 1", createdAt = Instant.now(), updatedAt = Instant.now()))
-        val note2 =
-            noteService.save(Note(id = 0, text = "Note 2", createdAt = Instant.now(), updatedAt = Instant.now()))
-        val note3 =
-            noteService.save(Note(id = 0, text = "Note 3", createdAt = Instant.now(), updatedAt = Instant.now()))
+        val note1 = (noteService.save(Note(id = 0, text = "Note 1")) as Either.Right).value
+        val note2 = (noteService.save(Note(id = 0, text = "Note 2")) as Either.Right).value
+        val note3 = (noteService.save(Note(id = 0, text = "Note 3")) as Either.Right).value
 
         val result = noteService.getAfter(2, note1.id)
-
         assertEquals(2, result.size)
         assertEquals(note2.text, result[0].text)
         assertEquals(note3.text, result[1].text)
     }
 
     @Test
-    fun `getBefore should throw IllegalArgumentException for invalid id`() {
-        assertThrows<IllegalArgumentException> {
-            noteService.getBefore(1, 999)
-        }
+    fun `getBefore should return Left with NoteError for invalid id`() {
+        val result = noteService.getBefore(1, 999)
+        assertTrue(result.isEmpty())
     }
 
     @Test
-    fun `getAfter should throw IllegalArgumentException for invalid id`() {
-        assertThrows<IllegalArgumentException> {
-            noteService.getAfter(1, 999)
-        }
+    fun `getAfter should return Left with NoteError for invalid id`() {
+        val result = noteService.getAfter(1, 999)
+        assertTrue(result.isEmpty())
     }
 }
